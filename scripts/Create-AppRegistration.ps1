@@ -28,9 +28,12 @@ $requiredResourceAccess = @()
 # add permission to Microsoft Graph
 $graphResourceAccess = New-Object Microsoft.Azure.PowerShell.Cmdlets.Resources.MSGraph.Models.ApiV10.MicrosoftGraphRequiredResourceAccess
 $graphAccessList = @()
-$graphAccessList += ((New-Object -TypeName Microsoft.Azure.PowerShell.Cmdlets.Resources.MSGraph.Models.ApiV10.MicrosoftGraphResourceAccess -Property @{ Id = "37f7f235-527c-4136-accd-4a02d197296e"; Type = "Scope" })) # openid
-$graphAccessList += ((New-Object -TypeName Microsoft.Azure.PowerShell.Cmdlets.Resources.MSGraph.Models.ApiV10.MicrosoftGraphResourceAccess -Property @{ Id = "14dad69e-099b-42c9-810b-d002981feec1"; Type = "Scope" })) # profile
-$graphAccessList += ((New-Object -TypeName Microsoft.Azure.PowerShell.Cmdlets.Resources.MSGraph.Models.ApiV10.MicrosoftGraphResourceAccess -Property @{ Id = "e1fe6dd8-ba31-4d61-89e7-88639da4683d"; Type = "Scope" })) # User.Read
+$graphAccessList += ((New-Object -TypeName Microsoft.Azure.PowerShell.Cmdlets.Resources.MSGraph.Models.ApiV10.MicrosoftGraphResourceAccess -Property @{
+    Id = "37f7f235-527c-4136-accd-4a02d197296e"; Type = "Scope" })) # openid
+$graphAccessList += ((New-Object -TypeName Microsoft.Azure.PowerShell.Cmdlets.Resources.MSGraph.Models.ApiV10.MicrosoftGraphResourceAccess -Property @{
+    Id = "14dad69e-099b-42c9-810b-d002981feec1"; Type = "Scope" })) # profile
+$graphAccessList += ((New-Object -TypeName Microsoft.Azure.PowerShell.Cmdlets.Resources.MSGraph.Models.ApiV10.MicrosoftGraphResourceAccess -Property @{
+    Id = "e1fe6dd8-ba31-4d61-89e7-88639da4683d"; Type = "Scope" })) # User.Read
 $graphResourceAccess.ResourceAppId = "00000003-0000-0000-c000-000000000000" # Microsoft Graph
 $graphResourceAccess.ResourceAccess = $graphAccessList
 $requiredResourceAccess += $graphResourceAccess
@@ -38,7 +41,8 @@ $requiredResourceAccess += $graphResourceAccess
 # app permission for Databricks
 $databricksResourceAccess = New-Object Microsoft.Azure.PowerShell.Cmdlets.Resources.MSGraph.Models.ApiV10.MicrosoftGraphRequiredResourceAccess
 $databricksAccessList = @()
-$databricksAccessList += ((New-Object -TypeName Microsoft.Azure.PowerShell.Cmdlets.Resources.MSGraph.Models.ApiV10.MicrosoftGraphResourceAccess -Property @{ Id = "739272be-e143-11e8-9f32-f2801f1b9fd1"; Type = "Scope" }))
+$databricksAccessList += ((New-Object -TypeName Microsoft.Azure.PowerShell.Cmdlets.Resources.MSGraph.Models.ApiV10.MicrosoftGraphResourceAccess -Property @{
+     Id = "739272be-e143-11e8-9f32-f2801f1b9fd1"; Type = "Scope" }))
 $databricksResourceAccess.ResourceAppId = "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d" # Databricks
 $databricksResourceAccess.ResourceAccess = $databricksAccessList
 $requiredResourceAccess += $databricksResourceAccess
@@ -56,6 +60,19 @@ $permissionScope.Type = "User"
 $permissionScope.Value = "access_as_user"
 $api = $appRegistration.Api
 $api.Oauth2PermissionScope += $permissionScope
+Set-AzADApplication -ApplicationId $appRegistration.AppId -Api $api
+
+# Grant Teams access to API
+$preAuthorizedApplications = @()
+$permissionScopeTemp = $permissionScope.Id
+$preAuthorizedApplications += (New-Object Microsoft.Azure.PowerShell.Cmdlets.Resources.MSGraph.Models.ApiV10.MicrosoftGraphPreAuthorizedApplication -Property @{
+    AppId = "1fec8e78-bce4-4aaf-ab1b-5451cc387264"; DelegatedPermissionId = @("$($permissionScopeTemp)") # Microsoft Teams Desktop / Mobile client
+})
+$preAuthorizedApplications += (New-Object Microsoft.Azure.PowerShell.Cmdlets.Resources.MSGraph.Models.ApiV10.MicrosoftGraphPreAuthorizedApplication -Property @{
+    AppId = "5e3ce6c0-2b1f-4285-8d4b-75ee78787346"; DelegatedPermissionId = @("$($permissionScopeTemp)") # Microsoft Teams Web client
+})
+
+$api.PreAuthorizedApplication= $preAuthorizedApplications
 Set-AzADApplication -ApplicationId $appRegistration.AppId -Api $api
 
 # TODO: Grant admin consent for the permissions
