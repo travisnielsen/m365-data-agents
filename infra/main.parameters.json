@@ -1,0 +1,27 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "environmentName": {
+        "value": "${AZURE_ENV_NAME}"
+      },
+      "location": {
+        "value": "${AZURE_LOCATION}"
+      },
+      "dataAgentsExists": {
+        "value": "${SERVICE_DATA_AGENTS_RESOURCE_EXISTS=false}"
+      },
+      "principalId": {
+        "value": "${AZURE_PRINCIPAL_ID}"
+      },
+      "principalType": {
+        "value": "${AZURE_PRINCIPAL_TYPE}"
+      },
+      "teamsUsersGroupId": {
+        "value": "${AZURE_TEAMS_USERS_GROUP_ID}"
+      },
+      "botServiceAppId": {
+        "value": "${AZURE_BOT_SERVICE_APP_ID}"
+      }
+    }
+}
