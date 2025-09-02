@@ -12,18 +12,6 @@ sudo apt install python3-pip
 sudo apt install python-is-python3
 sudo apt install python3.12-venv
 ```
-Create a Python virtual environment at the root project folder:
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-```
-
-Use the `requirements.txt` file to install the Python packages:
-
-```bash
-pip install -r requirements.txt
-```
 
 Next, ensure you have the following developer tools installed:
 
@@ -82,3 +70,21 @@ Ensure Docker is running in your local environment and use the following command
 azd auth login
 azd provision
 ```
+
+### Run locally
+
+Create a Python virtual environment at the root project folder:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
+
+Use the `requirements.txt` file to install the Python packages:
+
+```bash
+pip install -r requirements.txt
+```
+
+### Run in Azure
+
