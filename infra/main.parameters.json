@@ -22,6 +22,18 @@
       },
       "botServiceAppId": {
         "value": "${AZURE_BOT_SERVICE_APP_ID}"
+      },
+      "botServiceAppApiScope": {
+        "value": "${AZURE_BOT_SERVICE_APP_API_SCOPE}"
+      },
+      "botServiceAppUri": {
+        "value": "${AZURE_BOT_SERVICE_APP_URI}"
+      },
+      "botServiceAppClientSecret": {
+        "value": "${AZURE_BOT_SERVICE_APP_CLIENT_SECRET}"
+      },
+      "entraGroupObjectId": {
+        "value": "${ENTRA_GROUP_OBJECT_ID}"
       }
     }
 }

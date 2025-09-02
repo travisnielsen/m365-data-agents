@@ -11,6 +11,9 @@ param location string
 
 param dataAgentsExists bool
 
+@description('Object ID of the Entra ID group that end-users are members of. This group is granted Storage Blob Contributor access.')
+param entraGroupObjectId string
+
 @description('Id of the user or app to assign application roles')
 param principalId string
 
@@ -19,6 +22,16 @@ param principalType string
 
 @description('The application ID of the Entra ID registration to be used for the Bot Service')
 param botServiceAppId string
+
+@description('The API scope for the bot service to access the app')
+param botServiceAppApiScope string
+
+@description('The Application ID URI for the bot service app registration')
+param botServiceAppUri string
+
+@description('The client secret for the bot service app registration')
+@secure()
+param botServiceAppClientSecret string
 
 // Tags that should be applied to all resources.
 // 
@@ -45,8 +58,11 @@ module resources 'resources.bicep' = {
     principalId: principalId
     principalType: principalType
     dataAgentsExists: dataAgentsExists
-    teamsUsersGroupId: 'd3f8c8e2-6f3b-4e2b-9c1d-1a2b3c4d5e6f' // Replace with your actual Azure AD group ID
     botServiceAppId: botServiceAppId
+    botServiceAppUri: botServiceAppUri
+    botServiceAppApiScope: botServiceAppApiScope
+    botServiceAppClientSecret: botServiceAppClientSecret
+    entraGroupObjectId: entraGroupObjectId
   }
 }
 

@@ -6,17 +6,26 @@ param tags object = {}
 
 param dataAgentsExists bool
 
+@description('Object ID of the Entra ID group that end-users are members of. This group is granted Storage Blob Contributor access.')
+param entraGroupObjectId string
+
 @description('Id of the user or app to assign application roles')
 param principalId string
 
 @description('Principal type of user or app')
 param principalType string
 
-@description('Id of the Azure AD group for Teams users')
-param teamsUsersGroupId string
-
 @description('The App ID of the bot service')
 param botServiceAppId string
+
+@description('The API scope for the bot service to access the app')
+param botServiceAppApiScope string
+
+@description('The Application ID URI for the bot service app registration')
+param botServiceAppUri string
+
+@secure()
+param botServiceAppClientSecret string
 
 // @description('The endpoint for the bot service to forward messages to: example: https://your-agent-endpoint.azurewebsites.net/api/messages')
 // param agentMessagingEndpoint string
@@ -154,20 +163,23 @@ module container 'br/public:avm/res/storage/storage-account/blob-service/contain
 resource blobContributorRoleAssignment 'Microsoft.Authorization/roleAssignments@2020-04-01-preview' = {
   name: guid(resourceToken, 'blobContributor')
   properties: {
-    principalId: teamsUsersGroupId
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382b8f8d')
+    principalId: entraGroupObjectId
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
     principalType: 'Group'
   }
 }
 
 // create azure bot service
-module botService 'modules/botService.bicep' = {
+module botService 'modules/botservice.bicep' = {
   name: 'botService'
   params: {
-    location: location
     tags: tags
+    name: 'm365bot-${resourceToken}'
     displayName: 'M365 Data Agent Bot'
     appId: botServiceAppId
+    appUri: botServiceAppUri
+    appApiScope: botServiceAppApiScope
+    appClientSecret: botServiceAppClientSecret
     tenantId: tenant().tenantId
     endpoint: 'https://${dataAgents.outputs.fqdn}/api/messages'
   }
