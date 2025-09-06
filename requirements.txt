@@ -1,4 +1,6 @@
+aiohttp
 databricks-sdk
+dotenv
 azure-identity
 azure-ai-agents
 azure-ai-projects

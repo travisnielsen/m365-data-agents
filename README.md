@@ -1,6 +1,6 @@
 # AI Foundry Data Agents
 
-Sample Agents that demonstrate using Azure AI Foundry to host agents that are integrated with M365 Copilot as well as Teams. Users are able to interact with Fabric Data Agents and Databricks Genie instances using natural language queries. User identity is passed through from teams to the target enviroment to maintain user-based access control end-to-end.
+Sample Agents that demonstrate using Azure AI Foundry to host agents that are integrated with M365 Copilot as well as Teams. Users are able to interact with Fabric Data Agents and Databricks Genie instances using natural language queries. User identity is passed through from teams to the target enviroment to maintain user-based access control end-to-end. This sample is based on the [ADB-Teams Sample App](https://github.com/Azure-Samples/AI-Foundry-Connections/blob/main/src/samples/adb_aifoundry_teams/README.md)
 
 ## Local Environment Setup
 
@@ -25,7 +25,9 @@ Next, ensure you have the following developer tools installed:
 
 * [Azure Developer CLI (AZD)](https://learn.microsoft.com/en-us/azure/developer/azure-developer-cli/install-azd?tabs=winget-windows%2Cbrew-mac%2Cscript-linux&pivots=os-linux)
 
-* Docker Desktop
+* [Docker Desktop](https://docs.docker.com/desktop/setup/install/windows-install/)
+
+* [Dev Tunnels CLI](https://learn.microsoft.com/en-us/azure/developer/dev-tunnels/get-started?tabs=linux)
 
 ## Deploy Infrastructure
 
@@ -39,6 +41,8 @@ Connect-AzAccount
 ```
 
 > ❗ **Important:** Be sure to copy the output from the script and save all the inforamtion. It will be needed in upcoming steps.
+
+Finally, open the Azure Portal and navigate to **Microsoft Entra ID**. Go to **App Registraitons** and find the app named "M365 Data Agent" (all applications tab). Select the agent and then click **API permissions**. In the Configured Permissions section, select **Grant admin consent for [your_domain]**".
 
 ### Create Entra ID group
 
@@ -71,7 +75,11 @@ azd auth login
 azd provision
 ```
 
-### Run locally
+## Publish the application to Teams
+
+
+
+## Run locally
 
 Create a Python virtual environment at the root project folder:
 
@@ -86,5 +94,18 @@ Use the `requirements.txt` file to install the Python packages:
 pip install -r requirements.txt
 ```
 
-### Run in Azure
+Navigate to the [src](/src/) directory and create a new file named **.env**. Copy the contents from [env.sample](/src/env.sample) into this file and update the values to match your environment.
+
+Create and host a local dev tunnel using the following command:
+
+```bash
+devtunnel user login -d
+devtunnel create my-agent-tunnel -a
+devtunnel port create -p 3978 my-agent-tunnel
+devtunnel host my-agent-tunnel
+```
+
+Go to the Azure portal and navigate to the Bot Service created earlier. Go to the **Configuration** pane and document the current value for **Messaging endpoint**. Next, replace it with the the dev tunnel URL provided in the CLI. Example: `https://ab0x1141-3978.use.devtunnels.ms/api/message`. Be sure to include the `/api/messages` path at the end. Click **Apply** when done.
+
+## Deploy to Azure
 
