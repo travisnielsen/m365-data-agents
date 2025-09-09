@@ -33,6 +33,9 @@ param botServiceAppUri string
 @secure()
 param botServiceAppClientSecret string
 
+@description('The name of the OAuth connection for the bot service')
+param oauthConnectionName string
+
 // Tags that should be applied to all resources.
 // 
 // Note that 'azd-service-name' tags should be applied separately to service host resources.
@@ -63,6 +66,7 @@ module resources 'resources.bicep' = {
     botServiceAppApiScope: botServiceAppApiScope
     botServiceAppClientSecret: botServiceAppClientSecret
     entraGroupObjectId: entraGroupObjectId
+    oauthConnectionName: oauthConnectionName
   }
 }
 

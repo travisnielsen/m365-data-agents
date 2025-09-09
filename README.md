@@ -63,6 +63,7 @@ AZURE_BOT_SERVICE_APP_ID=[your_app_registration_appid]
 AZURE_BOT_SERVICE_APP_URI=[your_app_registration_uri]
 AZURE_BOT_SERVICE_APP_API_SCOPE=[your_app_registration_api_scope]
 AZURE_BOT_SERVICE_APP_CLIENT_SECRET=[your_app_registration_client_secret]
+AZURE_BOT_SERVICE_OAUTH_CONNECTION_NAME="OauthBotAppConnection"
 ENTRA_GROUP_OBJECT_ID=[your_entra_id_group_object_id]
 ```
 

@@ -32,6 +32,9 @@
       "botServiceAppClientSecret": {
         "value": "${AZURE_BOT_SERVICE_APP_CLIENT_SECRET}"
       },
+      "oauthConnectionName": {
+        "value": "${AZURE_BOT_SERVICE_OAUTH_CONNECTION_NAME}"
+      },
       "entraGroupObjectId": {
         "value": "${ENTRA_GROUP_OBJECT_ID}"
       }

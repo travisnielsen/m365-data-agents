@@ -7,6 +7,7 @@ param appApiScope string
 @secure()
 param appClientSecret string
 param tenantId string
+param oauthConnectionName string
 
 
 @description('The endpoint for the bot service to forward messages to: example: https://your-agent-endpoint.azurewebsites.net/api/messages')
@@ -45,7 +46,7 @@ resource botServiceChannelSettings 'Microsoft.BotService/botServices/channels@20
 }
 
 resource botServiceConnections 'Microsoft.BotService/botServices/connections@2023-09-15-preview' = {
-  name: 'OauthBotAppConnection'
+  name: oauthConnectionName
   parent: botService
   location: 'global'
   properties: {

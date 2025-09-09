@@ -27,6 +27,9 @@ param botServiceAppUri string
 @secure()
 param botServiceAppClientSecret string
 
+@description('The name of the OAuth connection for the bot service')
+param oauthConnectionName string
+
 // @description('The endpoint for the bot service to forward messages to: example: https://your-agent-endpoint.azurewebsites.net/api/messages')
 // param agentMessagingEndpoint string
 
@@ -182,6 +185,7 @@ module botService 'modules/botservice.bicep' = {
     appClientSecret: botServiceAppClientSecret
     tenantId: tenant().tenantId
     endpoint: 'https://${dataAgents.outputs.fqdn}/api/messages'
+    oauthConnectionName: oauthConnectionName
   }
 }
 
