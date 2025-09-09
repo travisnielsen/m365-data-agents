@@ -11,6 +11,14 @@
             "request": "launch",
             "script": "${file}",
             "args": []
+        },
+        {
+            "name": "Python Debugger: Current file",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": false
         }
     ]
 }
