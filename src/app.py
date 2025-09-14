@@ -25,9 +25,7 @@ from microsoft_agents.hosting.core import (
 )
 
 from microsoft_agents.activity import load_configuration_from_env, ActivityTypes, Attachment
-
 from microsoft_agents.authentication.msal import MsalConnectionManager
-
 from azure.ai.projects import AIProjectClient
 from azure.identity import DefaultAzureCredential
 
@@ -44,6 +42,13 @@ from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.dashboards import GenieAPI
 from azure.storage.blob import BlobServiceClient, ContentSettings
 from start_server import start_server
+
+import logging
+ms_agents_logger = logging.getLogger("microsoft_agents")
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s (%(filename)s:%(lineno)d)"))
+ms_agents_logger.addHandler(console_handler)
+ms_agents_logger.setLevel(logging.DEBUG)
 
 class TeamsAppCustomException(Exception):
     def __init__(self, message):
@@ -228,7 +233,7 @@ async def on_message(context: TurnContext, state: TurnState):
             adbtoken = await getadbtoken(user_access_token.token)
             #await context.send_activity(f"Your ADB token: {adbtoken}")
     except TeamsAppCustomException as e:
-            await context.send_activity(MessageFactory.text("Error occurred while fetching ADB token."))
+            await context.send_activity(MessageFactory.text("Error occurred while fetching ADB token. error: " + str(e)))
             return
         
     response = ""

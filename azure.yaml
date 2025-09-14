@@ -8,7 +8,11 @@ services:
         project: .
         host: containerapp
         language: python
+        docker:
+            path: Dockerfile
+            context: .
 resources:
     data-agents:
         type: host.containerapp
-        port: 80
+        port: 3978
+

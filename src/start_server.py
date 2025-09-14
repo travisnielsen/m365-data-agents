@@ -1,4 +1,5 @@
 from os import environ
+import os
 from microsoft_agents.hosting.core import AgentApplication, AgentAuthConfiguration
 from microsoft_agents.hosting.aiohttp import (
     start_agent_process,
@@ -22,11 +23,17 @@ def start_server(
 
     APP = Application(middlewares=[jwt_authorization_middleware])
     APP.router.add_post("/api/messages", entry_point)
+
+    # Add /health GET endpoint
+    async def health_check(req: Request) -> Response:
+        return Response(status=200, text="OK")
+    APP.router.add_get("/health", health_check)
+
     APP["agent_configuration"] = auth_configuration
     APP["agent_app"] = agent_application
     APP["adapter"] = agent_application.adapter
 
     try:
-        run_app(APP, host="localhost", port=environ.get("PORT", 3978))
+        run_app(APP, host="0.0.0.0", port=int(os.getenv("PORT", "3978")))
     except Exception as error:
         raise error
