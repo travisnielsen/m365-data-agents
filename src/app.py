@@ -27,7 +27,7 @@ from microsoft_agents.hosting.core import (
 from microsoft_agents.activity import load_configuration_from_env, ActivityTypes, Attachment
 from microsoft_agents.authentication.msal import MsalConnectionManager
 from azure.ai.projects import AIProjectClient
-from azure.identity import DefaultAzureCredential
+from azure.identity import DefaultAzureCredential, ClientSecretCredential
 
 from azure.ai.agents.models import (
     AsyncToolSet,
@@ -48,7 +48,16 @@ ms_agents_logger = logging.getLogger("microsoft_agents")
 console_handler = logging.StreamHandler()
 console_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s (%(filename)s:%(lineno)d)"))
 ms_agents_logger.addHandler(console_handler)
-ms_agents_logger.setLevel(logging.DEBUG)
+
+loglevel = os.getenv("LOG_LEVEL", "WARNING").upper()
+if loglevel == "DEBUG":
+    ms_agents_logger.setLevel(logging.DEBUG)
+elif loglevel == "INFO":
+    ms_agents_logger.setLevel(logging.INFO)
+elif loglevel == "ERROR":
+    ms_agents_logger.setLevel(logging.ERROR)
+else:
+    ms_agents_logger.setLevel(logging.WARNING)
 
 class TeamsAppCustomException(Exception):
     def __init__(self, message):
@@ -101,10 +110,14 @@ async def getadbtoken(passed_user_access_token):
     global project_client, genie_spaceid, adbtoken, invalid_foundry_connection
 
     try:
-
         ADB_CONNECTION_NAME = os.getenv("ADB_CONNECTION_NAME","")
 
-        cred = DefaultAzureCredential(exclude_interactive_browser_credential=False)
+        # cred = DefaultAzureCredential(exclude_interactive_browser_credential=False)
+        cred = ClientSecretCredential(
+            tenant_id=os.getenv("CONNECTIONS__SERVICE_CONNECTION__SETTINGS__TENANTID"),
+            client_id=os.getenv("CONNECTIONS__SERVICE_CONNECTION__SETTINGS__CLIENTID"),
+            client_secret=os.getenv("CONNECTIONS__SERVICE_CONNECTION__SETTINGS__CLIENTSECRET"),
+        )
 
         project_client = AIProjectClient(FOUNDRY_URL, cred)
 
@@ -119,6 +132,7 @@ async def getadbtoken(passed_user_access_token):
 
         if (genie_spaceid != None):  
             print(f"Azure Databricks Genie Space ID: {genie_spaceid}")
+            ms_agents_logger.info(f"Azure Databricks Genie Space ID: {genie_spaceid}")
 
             #Get the ABD token via the OBO flow
             host      = 'https://login.microsoftonline.com/'+os.getenv("CONNECTIONS__SERVICE_CONNECTION__SETTINGS__TENANTID")+'/'
@@ -144,7 +158,9 @@ async def getadbtoken(passed_user_access_token):
             return adbtoken
 
     except Exception as e:
+        ms_agents_logger.error(f"Get ADB token failed: {e}")
         raise TeamsAppCustomException("Error obtaining Azure Databricks Connection from Azure Foundry Project or unable to get ADB token via OBO Flow! ")
+
 
 #Function to retrieive the Graph Token based on the user's ID token
 async def getgraphtoken(passed_user_access_token):
@@ -228,10 +244,15 @@ async def on_message(context: TurnContext, state: TurnState):
     await context.send_activity("Agent is thinking...Thanks for being patient...")
 
     try:
-        if adbtoken == None or adbtoken == "":
-            user_access_token = await AGENT_APP.auth.get_token(context, "GRAPH")
-            adbtoken = await getadbtoken(user_access_token.token)
-            #await context.send_activity(f"Your ADB token: {adbtoken}")
+        # The original sample code re-uses the adbtoken if it exists.
+        # However, the token may expire, so we should always get a new one.
+        # Also, multiple users may be using the bot, so we need to get the token for each user.
+        # Hence, the code below does not re-use the adbtoken variable.
+        # TODO: Need to account for different users with different tokens.
+        # if adbtoken == None or adbtoken == "":
+        user_access_token = await AGENT_APP.auth.get_token(context, "GRAPH")
+        adbtoken = await getadbtoken(user_access_token.token)
+        #await context.send_activity(f"Your ADB token: {adbtoken}")
     except TeamsAppCustomException as e:
             await context.send_activity(MessageFactory.text("Error occurred while fetching ADB token. error: " + str(e)))
             return

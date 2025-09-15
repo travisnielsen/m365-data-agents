@@ -1,0 +1,48 @@
+{
+    "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.23/MicrosoftTeams.schema.json",
+    "version": "1.0.0",
+    "manifestVersion": "1.23",
+    "id": "[RANDOM GUID]",
+    "name": {
+        "short": "Genie Data Agent",
+        "full": "Data Agent for Databricks Genie"
+    },
+    "developer": {
+        "name": "Contoso, Inc.",
+        "websiteUrl": "https://contoso.com",
+        "privacyUrl": "https://contoso.com/privacy",
+        "termsOfUseUrl": "https://consoto.com/terms"
+    },
+    "description": {
+        "short": "Sample application",
+        "full": "long description of this sample agent"
+    },
+    "icons": {
+        "outline": "outline.png",
+        "color": "color.png"
+    },
+    "accentColor": "#ffffff",
+    "bots": [
+        {
+            "botId": "[APP_ID]",
+            "scopes": [
+                "personal",
+                "team",
+                "groupChat"
+            ],
+            "isNotificationOnly": false,
+            "supportsCalling": false,
+            "supportsVideo": false,
+            "supportsFiles": false
+        }
+    ],
+    "validDomains": [
+        "[CONTAINER_APP_URL]",
+        "*.use.devtunnels.ms",
+        "token.botframework.com"
+    ],
+    "webApplicationInfo": {
+        "id": "[APP_ID]",
+        "resource": "api://botid-[APP_ID]"
+    }
+}

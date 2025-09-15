@@ -2,6 +2,8 @@
 
 Sample Agents that demonstrate using Azure AI Foundry to host agents that are integrated with M365 Copilot as well as Teams. Users are able to interact with Fabric Data Agents and Databricks Genie instances using natural language queries. User identity is passed through from teams to the target enviroment to maintain user-based access control end-to-end. This sample is based on the [ADB-Teams Sample App](https://github.com/Azure-Samples/AI-Foundry-Connections/blob/main/src/samples/adb_aifoundry_teams/README.md)
 
+> ❗IMPORTANT: This is a sample application to be used for demo purposes only. It is not intended for producution workloads.
+
 ## Local Environment Setup
 
 This repo assumes an environment running Ubuntu 24 LTS running on Windows 11 via Windows Subsystem for Linux (WSLv2) with Python 3.12 or higher installed:
@@ -46,9 +48,23 @@ Finally, open the Azure Portal and navigate to **Microsoft Entra ID**. Go to **A
 
 ### Create Entra ID group
 
-TBD
+The application can generate images (charts and graphs) based on user prompts. These images are stored in a blob storage account. To provide read/write access to these images for display in Teams, an Entra ID group is used. You can create the group by running: [Create-EntraIdGroup.ps1](/scripts/Create-EntraIdGroup.ps1). Be sure to save the group object ID that is output by the script as it will be needed later for the infrastructure setup.
 
-### Initialize the project
+### Create Databricks workspace and Genie room
+
+This sample currently assumes you have an existing Databricks workspace with Genie configured. Your test users must have read access to this environment.
+
+### Configure Azure AI Foundry project
+
+This sample currently assumes you have an existing AI Foundry project. For this sample application, three steps need to be taken:
+
+1. From within your AI Foundry workspace, create a new Databricks Genie connection by navigating to **Management Center** > **Connected Resources**. Create a new **Azure Databricks** connection and follow the setup steps. Document the connection name when finished.
+2. Document the **AI Foundry project endpoint**, which can be found in the **Overview** section of the project workspace.
+3. Open the Azure Portal and navigate to your AI Foundry resource. Select the **Access control (IAM)** section and grant the App Registration **Azure AI Project Manager** permissions. This is necessary to allow the agent code to view informaiton about the Genie connection and create/use the agent instance hosted in AI Foundry.
+
+> NOTE: We plan to automate these setup steps as part of the environment setup. We will also be looking into limiting the permissions granted to the agent code in a future update.
+
+### Initialize the application environment
 
 Open a bash terminal and navigate to the project root directory. Run the following command to initizlize the Azure Developer CLI:
 
@@ -78,7 +94,9 @@ azd provision
 
 ## Publish the application to Teams
 
+Update the values with square braces in the provided [manifest.json](/manifest/manifest.json) to match your environment. Be sure to use the values provided by the app registration script (above). Next, create a .zip file that contains the manifest.json, color.jpg, and outline.jpg files.
 
+Upload the app to Teams by accessing the [Microsoft Teams Admin Center](https://admin.teams.microsoft.com/policies/manage-apps) and select **Actions** > **Upload new app**.
 
 ## Run locally
 
@@ -101,12 +119,15 @@ Create and host a local dev tunnel using the following command:
 
 ```bash
 devtunnel user login -d
-devtunnel create my-agent-tunnel -a
-devtunnel port create -p 3978 my-agent-tunnel
-devtunnel host my-agent-tunnel
+devtunnel create genie-agent-tunnel -a
+devtunnel port create -p 3978 genie-agent-tunnel
+devtunnel host genie-agent-tunnel
 ```
 
 Go to the Azure portal and navigate to the Bot Service created earlier. Go to the **Configuration** pane and document the current value for **Messaging endpoint**. Next, replace it with the the dev tunnel URL provided in the CLI. Example: `https://ab0x1141-3978.use.devtunnels.ms/api/message`. Be sure to include the `/api/messages` path at the end. Click **Apply** when done.
 
 ## Deploy to Azure
 
+Ensure Docker Desktop is running in your environment and use the `azd deploy` command to build the contianer image and push to the Azure Container Apps instance.
+
+> NOTE: If you had previously been testing with Dev Tunnels, be sure to update your Azure Bot Service with the URL of your Container App.
