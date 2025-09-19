@@ -14,4 +14,4 @@ COPY src/ ./src/
 EXPOSE 3978
 
 # Start the application (adjust if your entrypoint is different)
-CMD ["python", "src/app.py"]
+CMD ["python", "src/main.py"]
