@@ -1,12 +1,12 @@
 # AI Foundry Data Agents
 
-Sample Agents that demonstrate using Azure AI Foundry to host agents that are integrated with M365 Copilot as well as Teams. Users are able to interact with Fabric Data Agents and Databricks Genie instances using natural language queries. User identity is passed through from teams to the target enviroment to maintain user-based access control end-to-end. This sample is based on the [ADB-Teams Sample App](https://github.com/Azure-Samples/AI-Foundry-Connections/blob/main/src/samples/adb_aifoundry_teams/README.md)
+Sample Agents that demonstrate using Azure AI Foundry to host agents that are integrated with M365 Copilot as well as Teams. Users are able to interact with Databricks Genie instances using natural language queries. User identity is passed through from teams to the target enviroment to maintain fine-grained access control end-to-end. This sample is based on the [ADB-Teams Sample App](https://github.com/Azure-Samples/AI-Foundry-Connections/blob/main/src/samples/adb_aifoundry_teams/README.md)
 
 > ❗IMPORTANT: This is a sample application to be used for demo purposes only. It is not intended for producution workloads.
 
 ## Local Environment Setup
 
-This repo assumes an environment running Ubuntu 24 LTS running on Windows 11 via Windows Subsystem for Linux (WSLv2) with Python 3.12 or higher installed:
+This repo assumes an environment running Ubuntu 22+ LTS running on Windows 11 via Windows Subsystem for Linux (WSLv2) with Python 3.12 or higher installed:
 
 ```bash
 sudo apt install python

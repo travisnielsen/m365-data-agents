@@ -44,5 +44,13 @@
     "webApplicationInfo": {
         "id": "[APP_ID]",
         "resource": "api://botid-[APP_ID]"
+    },
+    "copilotAgents": {
+        "customEngineAgents": [
+            {
+                "id": "[APP_ID]",
+                "type": "bot"
+            }
+        ]
     }
 }
