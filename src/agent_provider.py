@@ -4,8 +4,20 @@ from dotenv import load_dotenv
 from typing import Optional
 import logging
 
-# Use Agent Framework SDK for core functionality and telemetry
-from agent_framework import ChatAgent, get_logger
+# Use Agent Framework SDK for core functionality, agents, and telemetry
+from agent_framework import (
+    AgentRunResponse,
+    ChatAgent, 
+    get_logger,
+    ai_function,
+    HostedCodeInterpreterTool,
+    TextContent,
+    DataContent,
+)
+from agent_framework.azure import (
+    AzureAIAgentClient,
+    AzureOpenAIChatClient,
+)
 from agent_framework.microsoft import CopilotStudioAgent
 
 # Use existing microsoft_agents packages for Teams/M365 integration
@@ -19,23 +31,13 @@ from microsoft_agents.hosting.aiohttp import CloudAdapter
 from microsoft_agents.authentication.msal import MsalConnectionManager
 from microsoft_agents.activity import load_configuration_from_env
 
-from azure.ai.projects import AIProjectClient
-
-from azure.ai.agents.models import (
-    AsyncToolSet,
-    AsyncFunctionTool, 
-    RequiredFunctionToolCall,
-    SubmitToolOutputsAction,
-    ToolOutput,
-    CodeInterpreterTool,
-)
-
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 
 import agent_tools as tools
 
 # Module-level state (kept internal to this module)
-project_client: Optional[AIProjectClient] = None
+azure_ai_client: Optional[AzureAIAgentClient] = None
+chat_client: Optional[AzureOpenAIChatClient] = None
 invalid_foundry_connection: bool = False
 
 # this is the workspace id for the Genie connection
@@ -94,7 +96,6 @@ AGENT_APP = AgentApplication[TurnState](
 # Environment variables used across modules
 FOUNDRY_URL = os.getenv("FOUNDRY_URL", "")
 ADB_CONNECTION_NAME = os.getenv("ADB_CONNECTION_NAME", "")
-
 STORAGE_ACCTNAME = os.getenv("STORAGE_ACCTNAME", "")
 STORAGE_CONTNAME = os.getenv("STORAGE_CONTNAME", "")
 
@@ -103,120 +104,140 @@ IMAGES_DIR = os.path.join(os.getcwd(), "images")
 if not os.path.exists(IMAGES_DIR):
     os.makedirs(IMAGES_DIR)
 
-cred = ClientSecretCredential(
-            tenant_id=os.getenv("CONNECTIONS__SERVICE_CONNECTION__SETTINGS__TENANTID"),
-            client_id=os.getenv("CONNECTIONS__SERVICE_CONNECTION__SETTINGS__CLIENTID"),
-            client_secret=os.getenv("CONNECTIONS__SERVICE_CONNECTION__SETTINGS__CLIENTSECRET"),
-        )
+agent_instructions="""
+    You are an agent that responds to user questions related to Sales and pipeline just in Americas and by segment, sales of global customers, opportunity size, revenue by customers and customer churn. 
+    For all questions you must solely rely on the ask_genie_ai_function and rely on the following instructions. 
+    1. Instructions to use the ask_genie_ai_function
+        - You must use the same prompt as the user question and never change the user's prompt.
+        - Use the previous conversation_id if it's available.
+        - You must use the code interpreter tool for any visualization related questions or prompts.
+        - You must get the tabular data from the ask_genie_ai_function and render it via the markdown format before presenting the analysis of the data. 
+        - Please use the markdown format to display tabular data before rendering any visualization via the code interpreter tool.
+    2. Instructions on the visualization and code interpretation
+        - Test and display visualization code using the code interpreter, retrying if errors occur.
+        - Always use charts or graphs to illustrate trends when requested.
+        - Always create visualizations as `.png` files.
+        - Adapt visualizations (e.g., labels) to the user's language preferences.
+        - When asked to download data, default to a `.csv` format file and use the most recent data.
+        - Do not ever render the code or include file download links in the response.
+    """
 
-project_client = AIProjectClient(FOUNDRY_URL, cred)
+# Create AI function for ask_genie using Agent Framework SDK
+@ai_function
+async def ask_genie_ai_function(question: str, conversation_id: str = None) -> str:
+    """
+    Ask Genie for data analysis and insights.
+    
+    Args:
+        question: The question or query to ask Genie
+        conversation_id: Optional conversation ID for continuing a conversation
+        
+    Returns:
+        JSON string with the response from Genie
+    """
+    return await tools.ask_genie(question, conversation_id)
 
-# get the workspace id at startup
-connection = project_client.connections.get(ADB_CONNECTION_NAME)
-if connection.metadata.get("azure_databricks_connection_type") == "genie":
-    genie_workspaceid = connection.metadata.get("genie_space_id")
-else:
-    genie_workspaceid = None
 
-if genie_workspaceid is None:
+# Initialize Agent Framework SDK clients
+try:
+    # Set up Azure credentials for Agent Framework SDK
+    from azure.identity.aio import ClientSecretCredential as AsyncClientSecretCredential
+    
+    async_credential = AsyncClientSecretCredential(
+        tenant_id=os.getenv("CONNECTIONS__SERVICE_CONNECTION__SETTINGS__TENANTID"),
+        client_id=os.getenv("CONNECTIONS__SERVICE_CONNECTION__SETTINGS__CLIENTID"),
+        client_secret=os.getenv("CONNECTIONS__SERVICE_CONNECTION__SETTINGS__CLIENTSECRET"),
+    )
+    
+    
+    # For backward compatibility, try to get genie workspace ID from connection
+    # This requires Azure AI Projects client temporarily
+    from azure.ai.projects import AIProjectClient
+    from azure.identity import ClientSecretCredential
+    
+    credential = ClientSecretCredential(
+        tenant_id=os.getenv("CONNECTIONS__SERVICE_CONNECTION__SETTINGS__TENANTID"),
+        client_id=os.getenv("CONNECTIONS__SERVICE_CONNECTION__SETTINGS__CLIENTID"),
+        client_secret=os.getenv("CONNECTIONS__SERVICE_CONNECTION__SETTINGS__CLIENTSECRET"),
+    )
+    temp_project_client = AIProjectClient(FOUNDRY_URL, credential)
+
+    # get the workspace id at startup
+    connection = temp_project_client.connections.get(ADB_CONNECTION_NAME)
+    if connection.metadata.get("azure_databricks_connection_type") == "genie":
+        genie_workspaceid = connection.metadata.get("genie_space_id")
+    else:
+        genie_workspaceid = None
+        
+    if genie_workspaceid is None:
+        invalid_foundry_connection = True
+        raise RuntimeError("Genie space id not found in Foundry connection metadata.")
+        
+    # Clean up temporary client
+    del temp_project_client
+    
+    # Set backward compatibility variable
+    # azure_ai_client = azure_chat_client
+    
+except Exception as e:
+    logger.error(f"Failed to initialize Azure AI clients: {e}")
     invalid_foundry_connection = True
-    raise RuntimeError("Genie space id not found in Foundry connection metadata.")
+    genie_workspaceid = None
+    azure_ai_client = None
+    azure_chat_client = None
+
 
 # Wrap the agent function-calling flow: create agent, run, execute any required tools
 async def process_message(question: str, conversation_id: str = None) -> tuple[str, Optional[str]]:
-    """
-    Create and run an agent via Foundry's agent APIs, execute function tool calls (genie),
-    and return textual response and optional saved image filename.
-    """
-    global project_client
 
-    custom_functions = AsyncFunctionTool({tools.ask_genie})
-    toolset = AsyncToolSet()
-    toolset.add(custom_functions)
-    toolset.add(CodeInterpreterTool())
+    async with AzureAIAgentClient(async_credential=async_credential) as azure_chat_client:
+        agent: ChatAgent = azure_chat_client.create_agent(
+            name="data-analysis-assistant",
+            instructions=agent_instructions,
+            tools=[ask_genie_ai_function, HostedCodeInterpreterTool()]
+        )
 
-    response = ""
-    file_name = None
+        try:
+            # Execute the agent with the user message using ChatAgent.run()
+            result: AgentRunResponse = await agent.run(question)
 
-    agent_client = project_client.agents
+            file_name = None
+            response = ""
+            
+            # Extract response from the result
+            if result:
+                response = result.text or ""
+                
+                # Check if there are any data/file outputs (e.g., from code interpreter)
+                if hasattr(result, 'messages') and result.messages:
+                    # Iterate through ChatMessage objects in the response
+                    for message in result.messages:
+                        # Check if the ChatMessage has contents
+                        if hasattr(message, 'contents') and message.contents:
+                            for content_item in message.contents:
+                                if isinstance(content_item, TextContent):
+                                    # Update response text if we find text content
+                                    if content_item.text:
+                                        response = content_item.text
+                                elif isinstance(content_item, DataContent):
+                                    # Handle data/file content (e.g., images from code interpreter)
+                                    if content_item.type == "image/png" and hasattr(content_item, 'data'):
+                                        # Save the image file
+                                        file_name = f"agent_output_{getattr(content_item, 'id', 'unknown')}.png"
+                                        file_path = os.path.join(IMAGES_DIR, file_name)
+                                        
+                                        with open(file_path, "wb") as f:
+                                            f.write(content_item.data)
+                                        
+                                        # Upload visualization to blob storage for Teams card rendering
+                                        await tools.upload_blob_file(file_name)
+        
+        except Exception as e:
+            logger.error(f"Error executing agent: {e}")
+            response = f"Sorry, I encountered an error processing your request: {str(e)}"
+            file_name = None
 
-    agent = agent_client.create_agent(
-        name="my-assistant",
-        model=os.environ.get("MODEL_DEPLOYMENT_NAME", "gpt-4o"),
-        instructions=(
-            """
-            Your are an agent that responds to user questions related to Sales and pipeline just in Americas and by segment, sales of global customers, opportunity size, revenue by customers and customer churn. 
-            For all questions you must solely rely on the function ask_genie and rely on the following instructions. 
-            1. Instructions to use the ask_genie function
-                - You must use the same prompt as the user question and never change the user's prompt.
-                - Use the previous conversation_id if it's available.
-                - Pass the value of genie_workspaceid from the agent_provider module.
-                - You must use the code interpreter tool for any vizualation related questiins or prompts.
-                - You must get the tabular data from the ask_genie function and render it via the markdown format before presenting the analysis of the data. 
-                - Please use the markdown format to display tabular data before rendering any visualization via the code interpreter tool.
-            2. Instructions on the visualization and code interpretation
-                - Test and display visualization code using the code interpreter, retrying if errors occur.
-                - Always use charts or graphs to illustrate trends when requested.
-                - Always create visualizations as `.png` files.
-                - Adapt visualizations (e.g., labels) to the user's language preferences.
-                - When asked to download data, default to a `.csv` format file and use the most recent data.
-                - Do not ever render the code or include file download links in the response.
-            """
-        ),
-        toolset=toolset,
-    )
-
-    thread = agent_client.threads.create()
-    message = agent_client.messages.create(thread_id=thread.id, role="user", content=question)
-
-    run = agent_client.runs.create(thread_id=thread.id, agent_id=agent.id)
-
-    # Poll for progress and handle required actions
-    while run.status in ["queued", "in_progress", "requires_action"]:
-        run = agent_client.runs.get(thread_id=thread.id, run_id=run.id)
-
-        if run.status == "requires_action" and isinstance(run.required_action, SubmitToolOutputsAction):
-            tool_calls = run.required_action.submit_tool_outputs.tool_calls
-            if not tool_calls:
-                agent_client.runs.cancel(thread_id=thread.id, run_id=run.id)
-                break
-
-            tool_outputs = []
-            for tool_call in tool_calls:
-                if isinstance(tool_call, RequiredFunctionToolCall):
-                    try:
-                        output = await custom_functions.execute(tool_call)
-                        tool_outputs.append(
-                            ToolOutput(tool_call_id=tool_call.id, output=output)
-                        )
-                    except Exception as e:
-                        ms_agents_logger.error(f"Error executing tool_call {tool_call.id}: {e}")
-
-            if tool_outputs:
-                agent_client.runs.submit_tool_outputs(thread_id=thread.id, run_id=run.id, tool_outputs=tool_outputs)
-
-    messages = agent_client.messages.list(thread_id=thread.id, run_id=run.id)
-
-    latest_message = None
-    for msg in messages:
-        latest_message = msg
-        break
-
-    if latest_message and latest_message.content:
-        for content_item in latest_message.content:
-            if content_item.type == "text":
-                response = content_item.text.value
-            elif content_item.type == "image_file":
-                file_id = content_item.image_file.file_id
-                file_name = f"{file_id}_image_file.png"
-                agent_client.files.save(file_id=file_id, file_name=file_name, target_dir=IMAGES_DIR)
-                # upload visualization to blob storage for Teams card rendering
-                await tools.upload_blob_file(file_name)
-
-    # Clean up the temporary agent
-    agent_client.delete_agent(agent.id)
-
-    return response, file_name
+        return response, file_name
 
 # Export a convenient list of public names
 __all__ = [
