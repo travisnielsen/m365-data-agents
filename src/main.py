@@ -1,6 +1,3 @@
-# Copyright (c) Microsoft Corporation. All rights reserved.
-# Licensed under the MIT License.
-
 import os
 from os import environ
 from microsoft_agents.hosting.core import AgentApplication, AgentAuthConfiguration
@@ -10,7 +7,6 @@ from microsoft_agents.hosting.aiohttp import (
     CloudAdapter,
 )
 from aiohttp.web import Request, Response, Application, run_app
-
 
 def start_server(agent_application: AgentApplication, auth_configuration: AgentAuthConfiguration):
     async def entry_point(req: Request) -> Response:
@@ -43,11 +39,11 @@ try:
     # When executed as a module (python -m src.main)
     from . import agent_provider as provider
     # Import handlers to register them with AGENT_APP (module import triggers decorator registration)
-    from . import m365_agent  # noqa: F401
+    from . import app  # noqa: F401
 except Exception:
     # When executed as a script (python src/main.py) the src/ directory is on sys.path
     import agent_provider as provider
-    import m365_agent  # noqa: F401
+    import app  # noqa: F401
 
 # Start the server using the configured AgentApplication and the default auth configuration
 if __name__ == "__main__":

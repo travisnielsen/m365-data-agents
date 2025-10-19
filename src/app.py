@@ -1,18 +1,12 @@
-# Teams/Microsoft 365 agent handlers: register activity handlers on AGENT_APP and
-# delegate to agent_tools for external calls.
-
 import re
 import traceback
-from typing import Optional
+import agent_provider as provider
+import agent_tools as tools
 
 from microsoft_agents.activity import ActivityTypes, Attachment
 from microsoft_agents.hosting.core import TurnContext, TurnState, MessageFactory
 
-import agent_provider as provider
-import agent_tools as tools
-
 AGENT_APP = provider.AGENT_APP
-
 
 @AGENT_APP.activity(ActivityTypes.invoke)
 async def invoke(context: TurnContext, state: TurnState) -> str:
@@ -37,10 +31,12 @@ async def handle_sign_in_success(
 
 
 @AGENT_APP.conversation_update("membersAdded")
-async def on_members_added(context: TurnContext, _state: TurnState):
+async def on_members_added(context: TurnContext, state: TurnState):
     await context.send_activity(
-        "Welcome to the ADB-AIFoundry-Teams demo!"
-        "For OAuth flows, enter the 6-digit verification code when prompted."
+        MessageFactory.text(
+            "Welcome to the ADB-AIFoundry-Teams demo! "
+            "For OAuth flows, enter the 6-digit verification code when prompted."
+        )
     )
     return True
 
@@ -68,7 +64,7 @@ async def on_message(context: TurnContext, state: TurnState):
 
         # Always fetch a fresh ADB token for the requesting user
         user_access_token = await AGENT_APP.auth.get_token(context, "GRAPH")
-        await tools.getadbtoken(user_access_token.token)
+        await tools.get_adb_token(user_access_token.token)
 
     except Exception as e:
         await context.send_activity(MessageFactory.text("Error occurred while fetching ADB token. error: " + str(e)))
@@ -76,12 +72,12 @@ async def on_message(context: TurnContext, state: TurnState):
 
     try:
         # Validate Foundry connection
-        if tools.genie_spaceid is None or tools.adbtoken is None:
-            if tools.invalid_foundry_connection:
+        if provider.genie_workspaceid is None or tools.adbtoken is None:
+            if provider.invalid_foundry_connection:
                 await context.send_activity(MessageFactory.text("Azure Foundry URL is either incorrect or the Databaricks Genie connection isn't configured for the Azure AI Foundry project ."))
                 return
 
-        response, imageurl = await tools.processmessage(prompt)
+        response, imageurl = await provider.process_message(prompt)
 
         if response:
             await context.send_activity(MessageFactory.text(response))
