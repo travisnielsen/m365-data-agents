@@ -94,7 +94,7 @@ AGENT_APP = AgentApplication[TurnState](
 )
 
 # Environment variables used across modules
-FOUNDRY_URL = os.getenv("FOUNDRY_URL", "")
+AZURE_AI_PROJECT_ENDPOINT = os.getenv("AZURE_AI_PROJECT_ENDPOINT", "")
 ADB_CONNECTION_NAME = os.getenv("ADB_CONNECTION_NAME", "")
 STORAGE_ACCTNAME = os.getenv("STORAGE_ACCTNAME", "")
 STORAGE_CONTNAME = os.getenv("STORAGE_CONTNAME", "")
@@ -160,7 +160,7 @@ try:
         client_id=os.getenv("CONNECTIONS__SERVICE_CONNECTION__SETTINGS__CLIENTID"),
         client_secret=os.getenv("CONNECTIONS__SERVICE_CONNECTION__SETTINGS__CLIENTSECRET"),
     )
-    temp_project_client = AIProjectClient(FOUNDRY_URL, credential)
+    temp_project_client = AIProjectClient(AZURE_AI_PROJECT_ENDPOINT, credential)
 
     # get the workspace id at startup
     connection = temp_project_client.connections.get(ADB_CONNECTION_NAME)
@@ -247,7 +247,6 @@ __all__ = [
     "AUTHORIZATION",
     "ADAPTER",
     "IMAGES_DIR",
-    "FOUNDRY_URL",
     "ADB_CONNECTION_NAME",
     "STORAGE_ACCTNAME",
     "STORAGE_CONTNAME",
