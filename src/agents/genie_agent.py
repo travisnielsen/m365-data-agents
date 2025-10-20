@@ -18,7 +18,7 @@ from agent_framework.azure import (
 
 import logging
 from dotenv import load_dotenv
-import agents.agent_tools as tools
+import agents.genie_tools as tools
 import utils
 
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"))
@@ -38,23 +38,9 @@ IMAGES_DIR = os.path.join(os.getcwd(), "images")
 if not os.path.exists(IMAGES_DIR):
     os.makedirs(IMAGES_DIR)
 
-agent_instructions="""
-    You are an agent that responds to user questions related to Sales data
-    For all questions you must solely rely on the ask_genie_ai_function and use the following instructions.
-    1. Instructions to use the ask_genie_ai_function
-        - You must use the same prompt as the user question and never change the user's prompt.
-        - Use the previous conversation_id if it's available.
-        - You must use the code interpreter tool for any visualization related questions or prompts.
-        - You must get the tabular data from the ask_genie_ai_function and render it via the markdown format before presenting the analysis of the data. 
-        - Please use the markdown format to display tabular data before rendering any visualization via the code interpreter tool.
-    2. Instructions on the visualization and code interpretation
-        - Test and display visualization code using the code interpreter, retrying if errors occur.
-        - Always use charts or graphs to illustrate trends when requested.
-        - Always create visualizations as `.png` files.
-        - Adapt visualizations (e.g., labels) to the user's language preferences.
-        - When asked to download data, default to a `.csv` format file and use the most recent data.
-        - Do not ever render the code or include file download links in the response.
-    """
+# Load agent instructions from markdown file
+with open(os.path.join(os.path.dirname(__file__), "genie_agent_prompt.md"), "r") as f:
+    agent_instructions = f.read()
 
 # Create AI function for ask_genie using Agent Framework SDK
 @ai_function
