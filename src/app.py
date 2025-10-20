@@ -1,12 +1,74 @@
 import re
 import traceback
-import agent_provider as provider
-import agent_tools as tools
+import agents.genie_agent as agent
+import utils
+import os
+from os import environ, path
+from dotenv import load_dotenv
 
 from microsoft_agents.activity import ActivityTypes, Attachment
 from microsoft_agents.hosting.core import TurnContext, TurnState, MessageFactory
+from microsoft_agents.hosting.aiohttp import CloudAdapter
+from microsoft_agents.authentication.msal import MsalConnectionManager
+from microsoft_agents.activity import load_configuration_from_env
 
-AGENT_APP = provider.AGENT_APP
+from microsoft_agents.hosting.core import (
+    TurnState,
+    MemoryStorage,
+    AgentApplication,
+    Authorization
+)
+
+import logging
+
+# Load environment variables from .env located next to this module
+load_dotenv(path.join(path.dirname(__file__), ".env"))
+
+# Logging setup (keeps parity with previous app.py behavior)
+logger = logging.getLogger("microsoft_agents")
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s (%(filename)s:%(lineno)d)"))
+if not logger.handlers:
+    logger.addHandler(console_handler)
+
+loglevel = os.getenv("LOG_LEVEL", "WARNING").upper()
+if loglevel == "DEBUG":
+    logger.setLevel(logging.DEBUG)
+elif loglevel == "INFO":
+    logger.setLevel(logging.INFO)
+elif loglevel == "ERROR":
+    logger.setLevel(logging.ERROR)
+else:
+    logger.setLevel(logging.WARNING)
+
+# Import and setup tracing
+try:
+    from tracing_config import setup_agent_tracing
+    setup_agent_tracing()
+    logger.info("Starting M365 agent with tracing enabled")
+except ImportError:
+    logger.warning("Tracing configuration not available")
+    logger.info("Starting M365 agent without tracing")
+
+# Load agent SDK configuration from environment (same behavior as original app)
+agents_sdk_config = load_configuration_from_env(environ)
+
+# Storage and connection manager
+STORAGE = MemoryStorage()
+CONNECTION_MANAGER = MsalConnectionManager(**agents_sdk_config)
+ADAPTER = CloudAdapter(connection_manager=CONNECTION_MANAGER)
+AUTHORIZATION = Authorization(STORAGE, CONNECTION_MANAGER, **agents_sdk_config)
+
+# Create AgentApplication and export it
+AGENT_APP = AgentApplication[TurnState](
+    storage=STORAGE,
+    adapter=ADAPTER,
+    authorization=AUTHORIZATION,
+    **agents_sdk_config,
+)
+
+STORAGE_ACCTNAME = os.getenv("STORAGE_ACCTNAME", "")
+STORAGE_CONTNAME = os.getenv("STORAGE_CONTNAME", "")
 
 @AGENT_APP.activity(ActivityTypes.invoke)
 async def invoke(context: TurnContext, state: TurnState) -> str:
@@ -55,7 +117,7 @@ async def on_error(context: TurnContext, error: Exception):
 @AGENT_APP.message(re.compile(r".*", re.IGNORECASE), auth_handlers=["GRAPH"])
 async def on_message(context: TurnContext, state: TurnState):
     """
-    Main message handler: obtains OBO tokens, calls into tools to process message and
+    Main message handler: obtains OBO tokens, calls into utilities to process message and
     returns the results to the user.
     """
     try:
@@ -64,7 +126,7 @@ async def on_message(context: TurnContext, state: TurnState):
 
         # Always fetch a fresh ADB token for the requesting user
         user_access_token = await AGENT_APP.auth.get_token(context, "GRAPH")
-        await tools.get_adb_token(user_access_token.token)
+        await utils.get_adb_token(user_access_token.token)
 
     except Exception as e:
         await context.send_activity(MessageFactory.text("Error occurred while fetching ADB token. error: " + str(e)))
@@ -72,12 +134,12 @@ async def on_message(context: TurnContext, state: TurnState):
 
     try:
         # Validate Foundry connection
-        if provider.genie_workspaceid is None or tools.adbtoken is None:
-            if provider.invalid_foundry_connection:
-                await context.send_activity(MessageFactory.text("Azure Foundry URL is either incorrect or the Databaricks Genie connection isn't configured for the Azure AI Foundry project ."))
+        if agent.genie_workspaceid is None or utils.adbtoken is None:
+            if agent.invalid_foundry_connection:
+                await context.send_activity(MessageFactory.text("Azure Foundry URL is either incorrect or the Databricks Genie connection isn't configured for the Azure AI Foundry project."))
                 return
 
-        response, imageurl = await provider.process_message(prompt)
+        response, imageurl = await agent.process_message(prompt)
 
         if response:
             await context.send_activity(MessageFactory.text(response))
@@ -94,7 +156,7 @@ async def _send_custom_card(turn_context: TurnContext, imageurl: str):
     Send an adaptive card with the visualization image URL from blob storage.
     """
     try:
-        container_blob_file_path = f"https://{provider.STORAGE_ACCTNAME}.blob.core.windows.net/{provider.STORAGE_CONTNAME}/{imageurl}"
+        container_blob_file_path = f"https://{STORAGE_ACCTNAME}.blob.core.windows.net/{STORAGE_CONTNAME}/{imageurl}"
 
         card_data = {
             "type": "AdaptiveCard",

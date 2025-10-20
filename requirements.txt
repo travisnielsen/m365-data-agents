@@ -6,7 +6,6 @@ aiohttp
 databricks-sdk
 python-dotenv
 azure-identity
-azure-ai-projects
 azure.storage.blob
 
 # Microsoft Agents packages (compatible versions)
